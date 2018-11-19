@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn import datasets
 from matplotlib import pyplot as plt
-from .perceptron import perceptron
+from perceptron import perceptron
 
 
 def generate_halfmoon_dataset(n_samples = 200, shuffle = True, noise = 0):
