@@ -18,12 +18,6 @@ class perceptron(object):
         weighted_sum = weighted_inputs.sum()
         return perceptron.unit_step_function(weighted_sum)
 
-    pass
-
-p = perceptron(2)
-for x in [np.array([0,0]), np.array([0,1]), np.array([1,0]), np.array([1,1])]:
-    y = p(np.array(x))
-    print(x, y)
 
 
 
