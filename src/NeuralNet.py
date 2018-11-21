@@ -60,10 +60,7 @@ class NeuralNetwork:
         #calculate error
         dE_do = (output_vector - target_vector)
         #implement backpropagation
-        dW = back_propagation(dE_do, output_mat)
-        dW = dW * -self.learning_rate
-        #updating weights
-        
+        back_propagation(dE_do, output_mat)
         pass
 
 
@@ -80,20 +77,30 @@ class NeuralNetwork:
     """
     def back_propagation(dE_do, output_mat, dW = []):
         dW_vector = []
+
+        #current
         output_vector = output_mat[len(output_mat) - 1]
+        #sigmoid of current layer
         do_dSum = output_vector * ( 1 - output_vector )
-
-        for o in output_mat[len(output_mat) - 2]:
-            dSum_dw = o #neuron value on layer before
-            dE_dw = dE_do * do_dSum * dSum_dw
-            dW_vector.append(dE_dw)
+        #neuron value on layer before
+        dSum_dw = output_mat[len(output_mat) - 2] 
+        #calculate weights for current layer
+        dW_vector = np.dot((dE_do * do_dSum), dSum_dw.T) * self.learning_rate
+        """
+            for o in output_mat[len(output_mat) - 2]:
+                dSum_dw = o #neuron value on layer before
+                dE_dw = dE_do * do_dSum * dSum_dw
+                dW_vector.append(dE_dw)
+        """
         dW.append(dW_vector)
+        #update weights
+        self.weight_matrices[len(output_mat) - 2] += dW
         del output_mat[len(output_mat) - 1]
-
-        if(len(output_mat) > 2):
-            dW = back_propagation(dW_vector, output_mat, dW)
         
-        return dW
+        if(len(output_mat) >= 2):
+            #recurse if output_matrix has >= 2 rows --> 1+ weight matrix left
+            dW = back_propagation(dW_vector, output_mat, dW)
+        pass
 
 
 
