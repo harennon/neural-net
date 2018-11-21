@@ -1,4 +1,5 @@
 from matplotlib import pyplot as plt
+import run
 import numpy as np
 @np.vectorize
 def sigmoid(x):
@@ -52,12 +53,49 @@ class NeuralNetwork:
     def train(self, input_vector, target_vector):
         #turning arrays into column vectors
         target_vector = np.array(target_vector).T
-        output_vector = self.run(input_vector)
+        output_mat = self.run(input_vector)
+        output_vector = output_mat[len(self.layers) - 1]
         input_vector = np.array(input_vector, ndmin=2).T
 
         #calculate error
-
+        dE_do = (output_vector - target_vector)
+        #implement backpropagation
+        dW = back_propagation(dE_do, output_mat)
+        dW = dW * -self.learning_rate
+        #updating weights
+        
         pass
+
+
+    """
+        Performs back-propagation on the network given recursively
+        dW = matrix of dW for each ***neuron***
+        dE_do = partial derivative of error in terms of the sigmoid(o)
+        output_mat = matrix of outputs for each layer it went through
+        Base case: dW = [], dE_do = (y - t).
+                    This happens when we are finding error for the weights
+                    leading to the output, or the last matrix
+        Recursive case: dW = [some matrix], dE_do = dW_vector from layer after
+                    This happens for every intermediate layer + input layer
+    """
+    def back_propagation(dE_do, output_mat, dW = []):
+        dW_vector = []
+        output_vector = output_mat[len(output_mat) - 1]
+        do_dSum = output_vector * ( 1 - output_vector )
+
+        for o in output_mat[len(output_mat) - 2]:
+            dSum_dw = o #neuron value on layer before
+            dE_dw = dE_do * do_dSum * dSum_dw
+            dW_vector.append(dE_dw)
+        dW.append(dW_vector)
+        del output_mat[len(output_mat) - 1]
+
+        if(len(output_mat) > 2):
+            dW = back_propagation(dW_vector, output_mat, dW)
+        
+        return dW
+
+
 
     """
     Run the network with an input vector
@@ -70,12 +108,15 @@ class NeuralNetwork:
         print("Running current Neural Network with input : ", input_vector)
         #turning array into column vectors
         output_vector = np.array(input_vector, ndmin=2).T
+        output_mat = [output_vector]
         for W in self.weight_matrices:
             #matrix multiplying for each weight matrix
             output_vector = np.dot(W, output_vector)
             #passing result through the activation function
             output_vector = activation_function(output_vector)
-        return output_vector
+            #add calculated vector to matrix
+            output_mat.append(output_vector)
+        return output_mat
 
 
 if __name__ == "__main__":
