@@ -1,15 +1,27 @@
 from matplotlib import pyplot as plt
 import run
 import numpy as np
+
+"""
+    vectorized activation function
+"""
 @np.vectorize
 def sigmoid(x):
     return 1 / (1 + np.e ** -x)
 activation_function = sigmoid
 
+"""
+    simple random value generator
+"""
 from scipy.stats import truncnorm
 def truncated_normal(mean = 0, sd = 1, low = 0, upp = 10):
     return truncnorm( (low - mean) / sd, (upp - mean) / 
                      sd, loc = mean, scale = sd)
+"""
+    Euclidean loss function
+"""
+def loss(output, target):
+    return np.sum((target - output)**2)
 
 class NeuralNetwork:
     
@@ -43,8 +55,7 @@ class NeuralNetwork:
             #use W to generate random value matrices
             self.weight_matrices.append(np.array(W.rvs((self.layers[i + 1], 
                                                        self.layers[i]))))
-        print("Initializing weight matrices to random values" ,
-              self.weight_matrices)
+        print("Initializing weight matrices to random values\n")
 
     """
     Train the neural network with a single input/target_vector pair
@@ -57,74 +68,86 @@ class NeuralNetwork:
         output_vector = output_mat[len(self.layers) - 1]
         input_vector = np.array(input_vector, ndmin=2).T
         #calculate error
-        print("output vector = ", output_vector)
-        print("target vector = ", target_vector)
+
+        print("loss = ", loss(output_vector, target_vector))
         #implement backpropagtion
-        dE_do = output_vector - target_vector
-        self.back_propagation(dE_do, output_mat)
-        errors = []
+        dE_do = output_vector - target_vector #[out x 1] vector
+        dW = self.back_propagation(dE_do, output_mat, dW = [])
+        print("backpropagated dW = ", dW)
+
+        #update weights
+        for i in range(len(dW)):
+            self.weight_matrices[i] += dW[i] * (-1) * self.learning_rate
         
-        pass
-
-
+        #return loss
+        return loss(output_vector, target_vector)
         
     """
         Performs back-propagation on the network given recursively
         dW = matrix of dW for each ***neuron***
         dE_do = partial derivative of error in terms of the sigmoid(o)
         output_mat = matrix of outputs for each layer it went through
-        Base case: dW = [], dE_do = (y - t).
+        Base case: dW = [], dErr_do = (y - t).
                     This happens when we are finding error for the weights
                     leading to the output, or the last matrix
         Recursive case: dW = [some matrix], dE_do = dW_vector from layer after
                     This happens for every intermediate layer + input layer
 
-
-        for i in reversed(range(len(self.weight_matrices))):
-            weight_layer = self.weight_matrices[i]
-            #print(weight_layer)
-            error_layer = np.zeros(weight_layer.shape)
-            #base end case
-            if( i == len(self.weight_matrices) - 1 ):
-                print(target_vector - output_vector)
-                error_layer = (target_vector - output_vector)#not weight_layer, its output_mat[i]
-            #recursive inner case
-            else:
-                #error_layer = np.zeros((len(weight_layer), 1))
-                error_layer =  weight_layer * errors[0]
-            error_layer *= (output_mat[i+1] * (1.0 - output_mat[i+1]))
-            errors.insert(0, error_layer)
-            print(errors[0])
-            #self.weight_matrices[i] += self.learning_rate * errors[0].dot(output_mat[i])
     """
-    def back_propagation(self, dE_do, output_mat, dW = []):
-        dW_vector = []
+    def back_propagation(self, dErr_do, output_mat, i = 1, dW = []):
+        dW_mat = []
 
         #current
-        output_vector = output_mat[len(output_mat) - 1]
+        output_vector = output_mat[-(i)]
         #sigmoid of current layer
-        do_dSum = output_vector * ( 1 - output_vector )
+        do_dnet = output_vector * ( 1 - output_vector )
         #neuron value on layer before
-        dSum_dw = output_mat[len(output_mat) - 2] 
+        dnet_dw = output_mat[-(i + 1)] 
         #calculate weights for current layer
-        dW_vector = np.dot((dE_do * do_dSum), dSum_dw.T) * self.learning_rate
-        """
-            for o in output_mat[len(output_mat) - 2]:
-                dSum_dw = o #neuron value on layer before
-                dE_dw = dE_do * do_dSum * dSum_dw
-                dW_vector.append(dE_dw)
-        """
-        dW.insert(0,dW_vector)
-        #update weights
-        self.weight_matrices[len(output_mat) - 2] += dW[0]
-        del output_mat[len(output_mat) - 1]
-        
-        if(len(output_mat) >= 2):
-            #recurse if output_matrix has >= 2 rows --> 1+ weigh    t matrix left
-            dW = self.back_propagation(dW_vector, output_mat, dW)
-        pass
+        #dE/dw = dE/do o do/dnet x (dnet/dw).T
+        dW_mat = (dErr_do * do_dnet).dot(dnet_dw.T)
+        #dW_mat should have same dimensions as weight_matrices[i->j]
 
+        #insert calculated dw
+        dW.insert(0, dW_mat)
 
+        #recurse if i < len(output_mat) --> 1+ weight matrix left
+        if(i + 1 < len(output_mat)):
+            #prepare dErr_do for next recurisve call
+            #weights from prev layer j to all nodes this layer
+            wnetl = np.array(np.sum(self.weight_matrices[-(i)], axis=0), ndmin=2).T
+            #print("dErr/do = ", dErr_do.shape, "do_dnet = ", do_dnet.shape, "wnetl = ", wnetl.shape)
+            #hadamard multiply dErr/doL o doL/dnetL o wnetL
+            dErr_do = np.sum(dErr_do * do_dnet) * wnetl
+            dW = self.back_propagation(dErr_do, output_mat, i+1, dW)
+
+        return dW
+
+    """
+        trains the network for a fixed number of epochs or until it reaches a loss threshold
+        train = [[inputs], [targets]]
+        if n_epochs = 0, runs until error is below threshold, else run max n_epoch times or
+        until error reaches threshold
+    """
+    def train_network(self, train, n_epochs = 0, threshold=0.1):
+        epochs = 0
+        print("Starting to train for %d, or when the error is below %.3f\n\n" %(n_epochs, threshold))
+        while 1:
+            #reset sumError
+            sumError = 0
+
+            #train for each training set
+            for i in range(len(train[0])):
+                sumError += self.train(train[0][i], train[1][i])
+            sumError /= (2 * len(train[0]))
+
+            #check if sumError is less than threshold or if n_epochs exceeded
+            if epochs >= n_epochs or sumError <= threshold:
+                break
+
+            print("Epochs = %d, Error = %.3f" %(epochs, sumError))
+            epochs += 1
+        print("Finished training\n n_epochs = %d\n sumError = %.5f\n\n" %(epochs, sumError))
 
     """
     Run the network with an input vector
@@ -150,6 +173,6 @@ class NeuralNetwork:
 
 if __name__ == "__main__":
     nn = NeuralNetwork(layers = [5, 4, 3], learning_rate = 0.1)
-    out = nn.train([1, 2, 3, 4, 5], [1, 0, 1])
+    out = nn.train_network([[[1, 2, 3, 4, 5]], [[1, 0, 1]]], n_epochs=100)
     print("Out : ", out)
     
