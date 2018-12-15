@@ -52,18 +52,22 @@ class NeuralNetwork:
     """
     def train(self, input_vector, target_vector):
         #turning arrays into column vectors
-        target_vector = np.array(target_vector).T
+        target_vector = np.array(target_vector, ndmin=2).T
         output_mat = self.run(input_vector)
         output_vector = output_mat[len(self.layers) - 1]
         input_vector = np.array(input_vector, ndmin=2).T
-
         #calculate error
-        dE_do = (output_vector - target_vector)
-        #implement backpropagation
-        back_propagation(dE_do, output_mat)
+        print("output vector = ", output_vector)
+        print("target vector = ", target_vector)
+        #implement backpropagtion
+        dE_do = output_vector - target_vector
+        self.back_propagation(dE_do, output_mat)
+        errors = []
+        
         pass
 
 
+        
     """
         Performs back-propagation on the network given recursively
         dW = matrix of dW for each ***neuron***
@@ -74,8 +78,26 @@ class NeuralNetwork:
                     leading to the output, or the last matrix
         Recursive case: dW = [some matrix], dE_do = dW_vector from layer after
                     This happens for every intermediate layer + input layer
+
+
+        for i in reversed(range(len(self.weight_matrices))):
+            weight_layer = self.weight_matrices[i]
+            #print(weight_layer)
+            error_layer = np.zeros(weight_layer.shape)
+            #base end case
+            if( i == len(self.weight_matrices) - 1 ):
+                print(target_vector - output_vector)
+                error_layer = (target_vector - output_vector)#not weight_layer, its output_mat[i]
+            #recursive inner case
+            else:
+                #error_layer = np.zeros((len(weight_layer), 1))
+                error_layer =  weight_layer * errors[0]
+            error_layer *= (output_mat[i+1] * (1.0 - output_mat[i+1]))
+            errors.insert(0, error_layer)
+            print(errors[0])
+            #self.weight_matrices[i] += self.learning_rate * errors[0].dot(output_mat[i])
     """
-    def back_propagation(dE_do, output_mat, dW = []):
+    def back_propagation(self, dE_do, output_mat, dW = []):
         dW_vector = []
 
         #current
@@ -92,14 +114,14 @@ class NeuralNetwork:
                 dE_dw = dE_do * do_dSum * dSum_dw
                 dW_vector.append(dE_dw)
         """
-        dW.append(dW_vector)
+        dW.insert(0,dW_vector)
         #update weights
-        self.weight_matrices[len(output_mat) - 2] += dW
+        self.weight_matrices[len(output_mat) - 2] += dW[0]
         del output_mat[len(output_mat) - 1]
         
         if(len(output_mat) >= 2):
-            #recurse if output_matrix has >= 2 rows --> 1+ weight matrix left
-            dW = back_propagation(dW_vector, output_mat, dW)
+            #recurse if output_matrix has >= 2 rows --> 1+ weigh    t matrix left
+            dW = self.back_propagation(dW_vector, output_mat, dW)
         pass
 
 
@@ -128,6 +150,6 @@ class NeuralNetwork:
 
 if __name__ == "__main__":
     nn = NeuralNetwork(layers = [5, 4, 3], learning_rate = 0.1)
-    out = nn.run([1, 2, 3, 4, 5])
+    out = nn.train([1, 2, 3, 4, 5], [1, 0, 1])
     print("Out : ", out)
     
