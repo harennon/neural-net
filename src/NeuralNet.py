@@ -65,15 +65,12 @@ class NeuralNetwork:
         #turning arrays into column vectors
         target_vector = np.array(target_vector, ndmin=2).T
         output_mat = self.run(input_vector)
-        output_vector = output_mat[len(self.layers) - 1]
+        output_vector = output_mat[-1]
         input_vector = np.array(input_vector, ndmin=2).T
-        #calculate error
 
-        print("loss = ", loss(output_vector, target_vector))
         #implement backpropagtion
         dE_do = output_vector - target_vector #[out x 1] vector
         dW = self.back_propagation(dE_do, output_mat, dW = [])
-        print("backpropagated dW = ", dW)
 
         #update weights
         for i in range(len(dW)):
@@ -125,7 +122,10 @@ class NeuralNetwork:
 
     """
         trains the network for a fixed number of epochs or until it reaches a loss threshold
-        train = [[inputs], [targets]]
+        train = [ 
+                    [[inputa1, inputa2...],[inputb1, inputb2...],...] ,  
+                    [[targeta1,targeta2,...],[targetb1,targetb2,...],...] 
+                ]
         if n_epochs = 0, runs until error is below threshold, else run max n_epoch times or
         until error reaches threshold
     """
@@ -139,13 +139,13 @@ class NeuralNetwork:
             #train for each training set
             for i in range(len(train[0])):
                 sumError += self.train(train[0][i], train[1][i])
-            sumError /= (2 * len(train[0]))
+            sumError /= (len(train[0]))
 
             #check if sumError is less than threshold or if n_epochs exceeded
-            if epochs >= n_epochs or sumError <= threshold:
+            if (n_epochs != 0 and epochs >= n_epochs) or sumError <= threshold:
                 break
-
-            print("Epochs = %d, Error = %.3f" %(epochs, sumError))
+            if(epochs % 10 == 0):
+                print("Epochs = %d, Error = %.7f" %(epochs, sumError))
             epochs += 1
         print("Finished training\n n_epochs = %d\n sumError = %.5f\n\n" %(epochs, sumError))
 
@@ -157,7 +157,6 @@ class NeuralNetwork:
     post - output_vector calculated from weight_matrices
     """
     def run(self, input_vector):
-        print("Running current Neural Network with input : ", input_vector)
         #turning array into column vectors
         output_vector = np.array(input_vector, ndmin=2).T
         output_mat = [output_vector]
@@ -171,8 +170,16 @@ class NeuralNetwork:
         return output_mat
 
 
+    """
+        user-call method for running the Neural net for given input
+    """
+    def predict(self, input):
+        out = self.run(input)
+        return out[-1]
+
+'''
 if __name__ == "__main__":
     nn = NeuralNetwork(layers = [5, 4, 3], learning_rate = 0.1)
     out = nn.train_network([[[1, 2, 3, 4, 5]], [[1, 0, 1]]], n_epochs=100)
     print("Out : ", out)
-    
+'''  
