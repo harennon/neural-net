@@ -7,8 +7,22 @@ import numpy as np
 """
 @np.vectorize
 def sigmoid(x):
-    return 1 / (1 + np.e ** -x)
+    return 1 / (1 + np.exp(-x))
 activation_function = sigmoid
+
+"""
+    vecotrized softmax function
+"""
+@np.vectorize
+def softmax(x):
+    return np.exp(x) / np.exp(x).sum()
+
+"""
+    ReLU
+"""
+@np.vectorize
+def reLU(x):
+    return np.maximum(x, 0)
 
 """
     simple random value generator
@@ -52,9 +66,9 @@ class NeuralNetwork:
         #create rv_continous object (random variates)
         W = truncated_normal(mean = 2, sd = 1, low = -rad, upp = rad)
         for i in range(len(self.layers) - 1):
-            #use W to generate random value matrices
+            #use W to generate random value matrices, dim = layer[i + 1] x layer[i] + 1 for bias
             self.weight_matrices.append(np.array(W.rvs((self.layers[i + 1], 
-                                                       self.layers[i]))))
+                                                       self.layers[i] + 1))))
         print("Initializing weight matrices to random values\n")
 
     """
@@ -72,8 +86,10 @@ class NeuralNetwork:
         dE_do = output_vector - target_vector #[out x 1] vector
         dW = self.back_propagation(dE_do, output_mat, dW = [])
 
+
         #update weights
         for i in range(len(dW)):
+            #print("dW = %s, W = %s" %(dW[i].shape, self.weight_matrices[i].shape))
             self.weight_matrices[i] += dW[i] * (-1) * self.learning_rate
         
         #return loss
@@ -96,12 +112,16 @@ class NeuralNetwork:
 
         #current
         output_vector = output_mat[-(i)]
+        #remove bias from calculation
+        if(i != 1):
+            output_vector = np.delete(output_vector, -1, axis = 0)
         #sigmoid of current layer
         do_dnet = output_vector * ( 1 - output_vector )
         #neuron value on layer before
         dnet_dw = output_mat[-(i + 1)] 
         #calculate weights for current layer
         #dE/dw = dE/do o do/dnet x (dnet/dw).T
+        #print("dErr_do = %s, do_dnet = %s, dnet_dw = %s\n" %(dErr_do.shape, do_dnet.shape, dnet_dw.shape,))
         dW_mat = (dErr_do * do_dnet).dot(dnet_dw.T)
         #dW_mat should have same dimensions as weight_matrices[i->j]
 
@@ -111,9 +131,9 @@ class NeuralNetwork:
         #recurse if i < len(output_mat) --> 1+ weight matrix left
         if(i + 1 < len(output_mat)):
             #prepare dErr_do for next recurisve call
-            #weights from prev layer j to all nodes this layer
-            wnetl = np.array(np.sum(self.weight_matrices[-(i)], axis=0), ndmin=2).T
-            #print("dErr/do = ", dErr_do.shape, "do_dnet = ", do_dnet.shape, "wnetl = ", wnetl.shape)
+            #weights from prev layer j to all nodes this layer except the bias column
+            wnetl = np.array(np.sum(np.delete(self.weight_matrices[-(i)], -1, axis=1), axis=0), ndmin=2).T
+            #print("dErr_do = %s, do_dnet = %s, dnet_dw = %s\n" %(dErr_do.shape, do_dnet.shape, wnetl.shape,))
             #hadamard multiply dErr/doL o doL/dnetL o wnetL
             dErr_do = np.sum(dErr_do * do_dnet) * wnetl
             dW = self.back_propagation(dErr_do, output_mat, i+1, dW)
@@ -144,8 +164,7 @@ class NeuralNetwork:
             #check if sumError is less than threshold or if n_epochs exceeded
             if (n_epochs != 0 and epochs >= n_epochs) or sumError <= threshold:
                 break
-            if(epochs % 10 == 0):
-                print("Epochs = %d, Error = %.7f" %(epochs, sumError))
+            print("Epochs = %d, Error = %.7f" %(epochs, sumError))
             epochs += 1
         print("Finished training\n n_epochs = %d\n sumError = %.5f\n\n" %(epochs, sumError))
 
@@ -159,12 +178,19 @@ class NeuralNetwork:
     def run(self, input_vector):
         #turning array into column vectors
         output_vector = np.array(input_vector, ndmin=2).T
+        #add bias to input
+        output_vector = np.vstack((output_vector,np.array([1])))
         output_mat = [output_vector]
-        for W in self.weight_matrices:
+        for i in range(len(self.weight_matrices)):
+            
             #matrix multiplying for each weight matrix
-            output_vector = np.dot(W, output_vector)
+            output_vector = self.weight_matrices[i].dot(output_vector)
             #passing result through the activation function
             output_vector = activation_function(output_vector)
+            #output_vector = reLU(output_vector)
+            if i != len(self.weight_matrices) - 1:
+                #add bias to input
+                output_vector = np.vstack((output_vector,np.array([1])))
             #add calculated vector to matrix
             output_mat.append(output_vector)
         return output_mat
@@ -177,9 +203,13 @@ class NeuralNetwork:
         out = self.run(input)
         return out[-1]
 
-'''
+    def get_network(self):
+        return self.weight_matrices
+
+    def load_network(self, W):
+        self.weight_matrices = W
+
 if __name__ == "__main__":
     nn = NeuralNetwork(layers = [5, 4, 3], learning_rate = 0.1)
     out = nn.train_network([[[1, 2, 3, 4, 5]], [[1, 0, 1]]], n_epochs=100)
     print("Out : ", out)
-'''  
