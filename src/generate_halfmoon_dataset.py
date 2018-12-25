@@ -14,12 +14,12 @@ X_train, y_train = generate_halfmoon_dataset(noise = 0.1)
 X_test, y_test = generate_halfmoon_dataset(noise = 0.1)
 
 nn = NeuralNetwork([2, 4, 2, 1], 0.03)
-if (not os.path.isfile("nn_halfmoon_noise_0.1.npy")):
+if (not os.path.isfile("nn_halfmoon_noise_0.1_tanh.npy")):
     train = [X_train, y_train]
     nn.train_network(train, n_epochs = 0, threshold = 0.001)
-    np.save("nn_halfmoon_noise_0.1", nn.get_network())
+    np.save("nn_halfmoon_noise_0.1_tanh", nn.get_network())
 else :
-    W = np.load("nn_halfmoon_noise_0.1.npy")
+    W = np.load("nn_halfmoon_noise_0.1_tanh.npy")
     print("loaded weight matrix W = %s\n" %(W))
     nn.load_network(W)
 

@@ -3,12 +3,50 @@ import run
 import numpy as np
 
 """
-    vectorized activation function
+    vectorized sigmoid function
 """
 @np.vectorize
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
-activation_function = sigmoid
+
+"""
+    vectorized tanh function
+"""
+@np.vectorize
+def tanh(x):
+    return np.tanh(x)
+
+"""
+    vectorized LeakyReLU
+"""
+@np.vectorize
+def leakyReLU(x, k = 0.05):
+    return x if x > 0 else x * k
+
+"""
+    vectorized sigmoid_prime
+"""
+@np.vectorize
+def sigmoid_prime(x):
+    return x * (1.0 - x)
+
+"""
+    vectorized tanh_prime
+"""
+@np.vectorize
+def tanh_prime(x):
+    return 1.0 - np.square(np.tanh(x))
+
+"""
+    vectorized leakyReLU prime
+"""
+@np.vectorize
+def leakyReLu_prime(x, k = 0.05):
+    return k if x < 0 else 1.0
+
+activation_function = tanh
+activation_function_prime = tanh_prime
+
 
 """
     vecotrized softmax function
@@ -17,12 +55,7 @@ activation_function = sigmoid
 def softmax(x):
     return np.exp(x) / np.exp(x).sum()
 
-"""
-    ReLU
-"""
-@np.vectorize
-def reLU(x):
-    return np.maximum(x, 0)
+
 
 """
     simple random value generator
@@ -115,8 +148,9 @@ class NeuralNetwork:
         #remove bias from calculation
         if(i != 1):
             output_vector = np.delete(output_vector, -1, axis = 0)
-        #sigmoid of current layer
-        do_dnet = output_vector * ( 1 - output_vector )
+        #partial of current layer in terms of activation function
+        do_dnet = activation_function_prime(output_vector)
+        #do_dnet = output_vector * ( 1 - output_vector )
         #neuron value on layer before
         dnet_dw = output_mat[-(i + 1)] 
         #calculate weights for current layer
